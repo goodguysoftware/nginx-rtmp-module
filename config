@@ -19,6 +19,7 @@ RTMP_CORE_MODULES="                                         \
                 ngx_rtmp_notify_module                      \
                 ngx_rtmp_log_module                         \
                 ngx_rtmp_limit_module                       \
+                ngx_rtmp_s3_module                          \
                 ngx_rtmp_hls_module                         \
                 ngx_rtmp_dash_module                        \
                 "
@@ -46,6 +47,7 @@ RTMP_DEPS="                                                 \
                 $ngx_addon_dir/ngx_rtmp_streams.h           \
                 $ngx_addon_dir/ngx_rtmp_bitop.h             \
                 $ngx_addon_dir/ngx_rtmp_proxy_protocol.h    \
+                $ngx_addon_dir/ngx_rtmp_s3_module.h         \
                 $ngx_addon_dir/hls/ngx_rtmp_mpegts.h        \
                 $ngx_addon_dir/dash/ngx_rtmp_mp4.h          \
                 "
@@ -80,6 +82,7 @@ RTMP_CORE_SRCS="                                            \
                 $ngx_addon_dir/ngx_rtmp_limit_module.c      \
                 $ngx_addon_dir/ngx_rtmp_bitop.c             \
                 $ngx_addon_dir/ngx_rtmp_proxy_protocol.c    \
+                $ngx_addon_dir/ngx_rtmp_s3_module.cpp       \
                 $ngx_addon_dir/hls/ngx_rtmp_hls_module.c    \
                 $ngx_addon_dir/dash/ngx_rtmp_dash_module.c  \
                 $ngx_addon_dir/hls/ngx_rtmp_mpegts.c        \
@@ -95,6 +98,7 @@ RTMP_HTTP_SRCS="                                            \
 if [ -f auto/module ] ; then
     ngx_module_incs=$ngx_addon_dir
     ngx_module_deps=$RTMP_DEPS
+    ngx_module_libs="-lstdc++ -laws-cpp-sdk-core -laws-cpp-sdk-s3-crt"
 
     if [ $ngx_module_link = DYNAMIC ] ; then
         ngx_module_name="$RTMP_CORE_MODULES $RTMP_HTTP_MODULES"

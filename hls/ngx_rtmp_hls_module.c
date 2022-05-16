@@ -9,7 +9,12 @@
 #include <ngx_rtmp.h>
 #include <ngx_rtmp_cmd_module.h>
 #include <ngx_rtmp_codec_module.h>
+#include <ngx_rtmp_s3_module.h>
 #include "ngx_rtmp_mpegts.h"
+
+
+const ngx_str_t CONTENT_TYPE_TS = ngx_string("video/MP2T");
+const ngx_str_t CONTENT_TYPE_M3U8 = ngx_string("application/x-mpegURL");
 
 
 static ngx_rtmp_publish_pt              next_publish;
@@ -943,7 +948,10 @@ static ngx_int_t
 ngx_rtmp_hls_close_fragment(ngx_rtmp_session_t *s)
 {
     ngx_rtmp_hls_ctx_t         *ctx;
+    ngx_rtmp_hls_app_conf_t    *hacf;
+    ngx_str_t                   p, k;
 
+    hacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_hls_module);
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_hls_module);
     if (ctx == NULL || !ctx->opened) {
         return NGX_OK;
@@ -956,9 +964,31 @@ ngx_rtmp_hls_close_fragment(ngx_rtmp_session_t *s)
 
     ctx->opened = 0;
 
+    p.data = ctx->stream.data;
+    p.len = ngx_strlen(ctx->stream.data);
+    k.data = p.data + hacf->path.len + 1;
+    k.len = p.len - hacf->path.len - 1;
+    if (ngx_rtmp_s3_upload(s, p, k, CONTENT_TYPE_TS, 1) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
     ngx_rtmp_hls_next_frag(s);
 
     ngx_rtmp_hls_write_playlist(s);
+
+    k.data = ctx->playlist.data + hacf->path.len + 1;
+    k.len = ctx->playlist.len - hacf->path.len - 1;
+    if (ngx_rtmp_s3_upload(s, ctx->playlist, k, CONTENT_TYPE_M3U8, 0) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    if (ctx->var) {
+        k.data = ctx->var_playlist.data + hacf->path.len + 1;
+        k.len = ctx->var_playlist.len - hacf->path.len - 1;
+        if (ngx_rtmp_s3_upload(s, ctx->var_playlist, k, CONTENT_TYPE_M3U8, 0) != NGX_OK) {
+            return NGX_ERROR;
+        }
+    }
 
     return NGX_OK;
 }
@@ -1644,6 +1674,11 @@ ngx_rtmp_hls_close_stream(ngx_rtmp_session_t *s, ngx_rtmp_close_stream_t *v)
                        "hls: full playlist '%s'", ctx->full_playlist.data);
 
         ngx_rtmp_hls_write_full_playlist(s);
+
+        key.data = ctx->full_playlist.data + hacf->path.len + 1;
+        key.len = ctx->full_playlist.len - hacf->path.len - 1;
+
+        ngx_rtmp_s3_upload(s, ctx->full_playlist, key, CONTENT_TYPE_M3U8, 0);
 
         ctx->sid = 0;
     }
